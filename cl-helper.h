@@ -139,6 +139,9 @@ char *read_file(const char *filename);
 cl_kernel kernel_from_string(cl_context ctx, 
     char const *knl, char const *knl_name, char const *options);
 
+void print_device_info(cl_device_id device);
+void print_device_info_from_queue(cl_command_queue queue);
+
 #define SET_1_KERNEL_ARG(knl, arg0) \
   CALL_CL_GUARDED(clSetKernelArg, (knl, 0, sizeof(arg0), &arg0));
 

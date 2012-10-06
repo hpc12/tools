@@ -1,4 +1,5 @@
-vec-add*
 .*.sw[op]
 *~
 a.out
+print-devices
+cl-demo

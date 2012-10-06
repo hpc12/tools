@@ -445,3 +445,265 @@ cl_kernel kernel_from_string(cl_context ctx,
 
   return kernel;
 }
+
+
+
+
+void print_device_info(cl_device_id device)
+{
+  // adapted from http://graphics.stanford.edu/~yoel/notes/clInfo.c
+
+#define LONG_PROPS \
+  defn(VENDOR_ID), \
+  defn(MAX_COMPUTE_UNITS), \
+  defn(MAX_WORK_ITEM_DIMENSIONS), \
+  defn(MAX_WORK_GROUP_SIZE), \
+  defn(PREFERRED_VECTOR_WIDTH_CHAR), \
+  defn(PREFERRED_VECTOR_WIDTH_SHORT), \
+  defn(PREFERRED_VECTOR_WIDTH_INT), \
+  defn(PREFERRED_VECTOR_WIDTH_LONG), \
+  defn(PREFERRED_VECTOR_WIDTH_FLOAT), \
+  defn(PREFERRED_VECTOR_WIDTH_DOUBLE), \
+  defn(MAX_CLOCK_FREQUENCY), \
+  defn(ADDRESS_BITS), \
+  defn(MAX_MEM_ALLOC_SIZE), \
+  defn(IMAGE_SUPPORT), \
+  defn(MAX_READ_IMAGE_ARGS), \
+  defn(MAX_WRITE_IMAGE_ARGS), \
+  defn(IMAGE2D_MAX_WIDTH), \
+  defn(IMAGE2D_MAX_HEIGHT), \
+  defn(IMAGE3D_MAX_WIDTH), \
+  defn(IMAGE3D_MAX_HEIGHT), \
+  defn(IMAGE3D_MAX_DEPTH), \
+  defn(MAX_SAMPLERS), \
+  defn(MAX_PARAMETER_SIZE), \
+  defn(MEM_BASE_ADDR_ALIGN), \
+  defn(MIN_DATA_TYPE_ALIGN_SIZE), \
+  defn(GLOBAL_MEM_CACHELINE_SIZE), \
+  defn(GLOBAL_MEM_CACHE_SIZE), \
+  defn(GLOBAL_MEM_SIZE), \
+  defn(MAX_CONSTANT_BUFFER_SIZE), \
+  defn(MAX_CONSTANT_ARGS), \
+  defn(LOCAL_MEM_SIZE), \
+  defn(ERROR_CORRECTION_SUPPORT), \
+  defn(PROFILING_TIMER_RESOLUTION), \
+  defn(ENDIAN_LITTLE), \
+  defn(AVAILABLE), \
+  defn(COMPILER_AVAILABLE),
+
+#define STR_PROPS \
+  defn(NAME), \
+  defn(VENDOR), \
+  defn(PROFILE), \
+  defn(VERSION), \
+  defn(EXTENSIONS),
+
+#define HEX_PROPS \
+  defn(SINGLE_FP_CONFIG), \
+  defn(QUEUE_PROPERTIES),
+
+
+  printf("---------------------------------------------------------------------\n");
+  
+
+  static struct { cl_device_info param; const char *name; } longProps[] = {
+#define defn(X) { CL_DEVICE_##X, #X }
+    LONG_PROPS
+#undef defn
+    { 0, NULL },
+  };
+  static struct { cl_device_info param; const char *name; } hexProps[] = {
+#define defn(X) { CL_DEVICE_##X, #X }
+    HEX_PROPS
+#undef defn
+    { 0, NULL },
+  };
+  static struct { cl_device_info param; const char *name; } strProps[] = {
+#define defn(X) { CL_DEVICE_##X, #X }
+    STR_PROPS
+#undef defn
+    { CL_DRIVER_VERSION, "DRIVER_VERSION" },
+    { 0, NULL },
+  };
+  cl_int status;
+  size_t size;
+  char buf[65536];
+  long long val; /* Avoids unpleasant surprises for some params */
+  int ii;
+
+  for (ii = 0; strProps[ii].name != NULL; ii++)
+  {
+    status = clGetDeviceInfo(device, strProps[ii].param, sizeof buf, buf, &size);
+    if (status != CL_SUCCESS)
+    {
+      printf("Unable to get %s: %s!\n",
+          strProps[ii].name, cl_error_to_str(status));
+      continue;
+    }
+    if (size > sizeof buf)
+    {
+      printf("Large %s (%zd bytes)!  Truncating to %ld!\n",
+          strProps[ii].name, size, sizeof buf);
+    }
+    printf("%s: %s\n",
+        strProps[ii].name, buf);
+  }
+  printf("\n");
+
+  status = clGetDeviceInfo(device, CL_DEVICE_TYPE, sizeof val, &val, NULL);
+  if (status == CL_SUCCESS)
+  {
+    printf("Type: ");
+    if (val & CL_DEVICE_TYPE_DEFAULT)
+    {
+      val &= ~CL_DEVICE_TYPE_DEFAULT;
+      printf("Default ");
+    }
+    if (val & CL_DEVICE_TYPE_CPU)
+    {
+      val &= ~CL_DEVICE_TYPE_CPU;
+      printf("CPU ");
+    }
+    if (val & CL_DEVICE_TYPE_GPU)
+    {
+      val &= ~CL_DEVICE_TYPE_GPU;
+      printf("GPU ");
+    }
+    if (val & CL_DEVICE_TYPE_ACCELERATOR)
+    {
+      val &= ~CL_DEVICE_TYPE_ACCELERATOR;
+      printf("Accelerator ");
+    }
+    if (val != 0) {
+      printf("Unknown (0x%llx) ", val);
+    }
+    printf("\n");
+  }
+  else
+  {
+    printf("Unable to get TYPE: %s!\n",
+        cl_error_to_str(status));
+  }
+
+  status = clGetDeviceInfo(device, CL_DEVICE_EXECUTION_CAPABILITIES,
+      sizeof val, &val, NULL);
+  if (status == CL_SUCCESS)
+  {
+    printf("EXECUTION_CAPABILITIES: ");
+    if (val & CL_EXEC_KERNEL)
+    {
+      val &= ~CL_EXEC_KERNEL;
+      printf("Kernel ");
+    }
+    if (val & CL_EXEC_NATIVE_KERNEL)
+    {
+      val &= ~CL_EXEC_NATIVE_KERNEL;
+      printf("Native ");
+    }
+    if (val)
+      printf("Unknown (0x%llx) ", val);
+
+    printf("\n");
+  }
+  else
+  {
+    printf("Unable to get EXECUTION_CAPABILITIES: %s!\n",
+        cl_error_to_str(status));
+  }
+
+  status = clGetDeviceInfo(device, CL_DEVICE_GLOBAL_MEM_CACHE_TYPE,
+      sizeof val, &val, NULL);
+  if (status == CL_SUCCESS)
+  {
+    static const char *cacheTypes[] = { "None", "Read-Only", "Read-Write" };
+    static int numTypes = sizeof cacheTypes / sizeof cacheTypes[0];
+
+    printf("GLOBAL_MEM_CACHE_TYPE: %s (%lld)\n",
+        val < numTypes ? cacheTypes[val] : "???", val);
+  }
+  else
+  {
+    printf("Unable to get GLOBAL_MEM_CACHE_TYPE: %s!\n",
+        cl_error_to_str(status));
+  }
+
+  status = clGetDeviceInfo(device,
+      CL_DEVICE_LOCAL_MEM_TYPE, sizeof val, &val, NULL);
+
+  if (status == CL_SUCCESS)
+  {
+    static const char *lmemTypes[] = { "???", "Local", "Global" };
+    static int numTypes = sizeof lmemTypes / sizeof lmemTypes[0];
+
+    printf("CL_DEVICE_LOCAL_MEM_TYPE: %s (%lld)\n",
+        val < numTypes ? lmemTypes[val] : "???", val);
+  }
+  else
+  {
+    printf("Unable to get CL_DEVICE_LOCAL_MEM_TYPE: %s!\n",
+        cl_error_to_str(status));
+  }
+
+  for (ii = 0; hexProps[ii].name != NULL; ii++)
+  {
+    status = clGetDeviceInfo(device, hexProps[ii].param, sizeof val, &val, &size);
+    if (status != CL_SUCCESS)
+    {
+      printf("Unable to get %s: %s!\n",
+          hexProps[ii].name, cl_error_to_str(status));
+      continue;
+    }
+    if (size > sizeof val)
+    {
+      printf("Large %s (%zd bytes)!  Truncating to %ld!\n",
+          hexProps[ii].name, size, sizeof val);
+    }
+    printf("%s: 0x%llx\n", hexProps[ii].name, val);
+  }
+  printf("\n");
+
+  for (ii = 0; longProps[ii].name != NULL; ii++)
+  {
+    status = clGetDeviceInfo(device, longProps[ii].param, sizeof val, &val, &size);
+    if (status != CL_SUCCESS)
+    {
+      printf("Unable to get %s: %s!\n",
+          longProps[ii].name, cl_error_to_str(status));
+      continue;
+    }
+    if (size > sizeof val)
+    {
+      printf("Large %s (%zd bytes)!  Truncating to %ld!\n",
+          longProps[ii].name, size, sizeof val);
+    }
+    printf("%s: %lld\n", longProps[ii].name, val);
+  }
+
+  {
+    size_t size;
+    CALL_CL_GUARDED(clGetDeviceInfo,
+        (device, CL_DEVICE_MAX_WORK_ITEM_SIZES, 0, 0, &size));
+
+    size_t res_vec[size/sizeof(size_t)]; // C99 VLA yay!
+
+    CALL_CL_GUARDED(clGetDeviceInfo,
+        (device, CL_DEVICE_MAX_WORK_ITEM_SIZES, size, res_vec, &size));
+
+    printf("MAX_WORK_GROUP_SIZES: "); // a tiny lie
+    for (size_t i = 0; i < size/sizeof(size_t); ++i)
+      printf("%d ", res_vec[i]);
+    printf("\n");
+  }
+  printf("---------------------------------------------------------------------\n");
+}
+
+
+
+void print_device_info_from_queue(cl_command_queue queue)
+{
+  cl_device_id dev;
+  CALL_CL_GUARDED(clGetCommandQueueInfo,
+      (queue, CL_QUEUE_DEVICE, sizeof dev, &dev, NULL));
+
+  print_device_info(dev);
+}
