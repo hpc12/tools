@@ -77,16 +77,14 @@ int main(int argc, char **argv)
   // run code on device
   // --------------------------------------------------------------------------
 
+  CALL_CL_GUARDED(clFinish, (queue));
+
   timestamp_type time1, time2;
   get_timestamp(&time1);
-
-  // FIXME REMOVE
-  CALL_CL_GUARDED(clFinish, (queue));
 
   for (int trip = 0; trip < ntrips; ++trip)
   {
     SET_4_KERNEL_ARGS(knl, buf_a, buf_b, buf_c, n);
-    // FIXME set to 1
     size_t ldim[] = { 128 };
     size_t gdim[] = { ((n + ldim[0] - 1)/ldim[0])*ldim[0] };
     CALL_CL_GUARDED(clEnqueueNDRangeKernel,
@@ -95,7 +93,6 @@ int main(int argc, char **argv)
          0, NULL, NULL));
   }
 
-  // FIXME REMOVE
   CALL_CL_GUARDED(clFinish, (queue));
 
   get_timestamp(&time2);
@@ -107,7 +104,6 @@ int main(int argc, char **argv)
   // --------------------------------------------------------------------------
   // transfer back & check
   // --------------------------------------------------------------------------
-  // FIXME kill
   CALL_CL_GUARDED(clEnqueueReadBuffer, (
         queue, buf_c, /*blocking*/ CL_TRUE, /*offset*/ 0,
         n * sizeof(double), c,
