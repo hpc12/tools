@@ -163,7 +163,7 @@ void print_platforms_devices()
  */
 char *read_a_line(void)
 {
-  char * line = malloc(MAX_NAME_LEN), * linep = line;
+  char * line = (char *) malloc(MAX_NAME_LEN), * linep = line;
   size_t lenmax = MAX_NAME_LEN, len = lenmax;
   int c;
 
@@ -178,7 +178,7 @@ char *read_a_line(void)
 
     if(--len == 0)
     {
-      char * linen = realloc(linep, lenmax *= 2);
+      char *linen = (char *) realloc(linep, lenmax *= 2);
       len = lenmax;
 
       if(linen == NULL)
@@ -246,7 +246,7 @@ void create_context_on(const char *plat_name, const char*dev_name, cl_uint idx,
       abort();
     }
 
-    int sel_int = MIN(MAX(0, atoi(sel)), plat_count-1);
+    int sel_int = MIN(MAX(0, atoi(sel)), (int) plat_count-1);
     free(sel);
 
     CALL_CL_GUARDED(clGetPlatformInfo, (platforms[sel_int], CL_PLATFORM_VENDOR,
@@ -302,7 +302,7 @@ void create_context_on(const char *plat_name, const char*dev_name, cl_uint idx,
           abort();
         }
 
-        int int_sel = MIN(MAX(0, atoi(sel)), dev_count-1);
+        int int_sel = MIN(MAX(0, atoi(sel)), (int) dev_count-1);
         free(sel);
 
         CALL_CL_GUARDED(clGetDeviceInfo, (devices[int_sel], CL_DEVICE_NAME,
@@ -375,7 +375,7 @@ char *read_file(const char *filename)
 
   // figure out file size
   CHECK_SYS_ERROR(fseek(f, 0, SEEK_END) < 0, "read_file: seeking to end");
-  long size = ftell(f);
+  size_t size = ftell(f);
 
   CHECK_SYS_ERROR(fseek(f, 0, SEEK_SET) != 0,
       "read_file: seeking to start");
@@ -421,7 +421,7 @@ cl_kernel kernel_from_string(cl_context ctx,
     CALL_CL_GUARDED(clGetProgramBuildInfo, (program, dev, CL_PROGRAM_BUILD_LOG,
           0, NULL, &log_size));
 
-    char *log = malloc(log_size);
+    char *log = (char *) malloc(log_size);
     CHECK_SYS_ERROR(!log, "kernel_from_string: allocate log");
 
     char devname[MAX_NAME_LEN];
@@ -691,7 +691,7 @@ void print_device_info(cl_device_id device)
 
     printf("MAX_WORK_GROUP_SIZES: "); // a tiny lie
     for (size_t i = 0; i < size/sizeof(size_t); ++i)
-      printf("%d ", res_vec[i]);
+      printf("%zd ", res_vec[i]);
     printf("\n");
   }
   printf("---------------------------------------------------------------------\n");
