@@ -25,6 +25,7 @@
 
 #include "cl-helper.h"
 #include <string.h>
+#include <stdbool.h>
 
 
 
@@ -396,11 +397,19 @@ char *read_file(const char *filename)
 
 
 
+static int printed_compiler_output_message = 0;
+
 cl_kernel kernel_from_string(cl_context ctx,
     char const *knl, char const *knl_name, char const *options)
 {
   // create an OpenCL program (may have multiple kernels)
   size_t sizes[] = { strlen(knl) };
+
+  if (options && strlen(options) == 0)
+  {
+    // reportedly, some implementations dislike empty strings.
+    options = NULL;
+  }
 
   cl_int status;
   cl_program program = clCreateProgramWithSource(ctx, 1, &knl, sizes, &status);
@@ -409,9 +418,8 @@ cl_kernel kernel_from_string(cl_context ctx,
   // build it
   status = clBuildProgram(program, 0, NULL, options, NULL, NULL);
 
-  if (status != CL_SUCCESS)
   {
-    // build failed, get build log and print it
+    // get build log and print it
 
     cl_device_id dev;
     CALL_CL_GUARDED(clGetProgramInfo, (program, CL_PROGRAM_DEVICES,
@@ -421,21 +429,42 @@ cl_kernel kernel_from_string(cl_context ctx,
     CALL_CL_GUARDED(clGetProgramBuildInfo, (program, dev, CL_PROGRAM_BUILD_LOG,
           0, NULL, &log_size));
 
-    char *log = (char *) malloc(log_size);
-    CHECK_SYS_ERROR(!log, "kernel_from_string: allocate log");
+    bool do_print = status != CL_SUCCESS;
+    if (!do_print && log_size)
+    {
+      if (getenv("CL_HELPER_PRINT_COMPILER_OUTPUT"))
+        do_print = true;
+      else
+      {
+        if (!printed_compiler_output_message && !getenv("CL_HELPER_NO_COMPILER_OUTPUT_NAG"))
+        {
+          fprintf(stderr, "*** Kernel compilation resulted in non-empty log message.\n"
+              "*** Set environment variable CL_HELPER_PRINT_COMPILER_OUTPUT=1 to see more.\n"
+              "*** NOTE: this may include compiler warnings and other important messages\n"
+              "***   about your code.\n"
+              "*** Set CL_HELPER_NO_COMPILER_OUTPUT_NAG=1 to disable this message.\n");
+          printed_compiler_output_message = true;
+        }
+      }
+    }
 
-    char devname[MAX_NAME_LEN];
-    CALL_CL_GUARDED(clGetDeviceInfo, (dev, CL_DEVICE_NAME,
-          sizeof(devname), devname, NULL));
+    if (do_print)
+    {
+      char *log = (char *) malloc(log_size);
+      CHECK_SYS_ERROR(!log, "kernel_from_string: allocate log");
 
-    CALL_CL_GUARDED(clGetProgramBuildInfo, (program, dev, CL_PROGRAM_BUILD_LOG,
-          log_size, log, NULL));
-    fprintf(stderr, "*** build of '%s' on '%s' failed:\n%s\n*** (end of error)\n",
-        knl_name, devname, log);
-    abort();
+      char devname[MAX_NAME_LEN];
+      CALL_CL_GUARDED(clGetDeviceInfo, (dev, CL_DEVICE_NAME,
+            sizeof(devname), devname, NULL));
+
+      CALL_CL_GUARDED(clGetProgramBuildInfo, (program, dev, CL_PROGRAM_BUILD_LOG,
+            log_size, log, NULL));
+      fprintf(stderr, "*** build of '%s' on '%s' said:\n%s\n*** (end of message)\n",
+          knl_name, devname, log);
+    }
   }
-  else
-    CHECK_CL_ERROR(status, "clBuildProgram");
+
+  CHECK_CL_ERROR(status, "clBuildProgram");
 
   // fish the kernel out of the program
   cl_kernel kernel = clCreateKernel(program, knl_name, &status);
