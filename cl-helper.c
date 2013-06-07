@@ -346,8 +346,11 @@ void create_context_on(const char *plat_name, const char*dev_name, cl_uint idx,
             if (enable_profiling)
               qprops |= CL_QUEUE_PROFILING_ENABLE;
 
-            *queue = clCreateCommandQueue(*ctx, dev, qprops, &status);
-            CHECK_CL_ERROR(status, "clCreateCommandQueue");
+            if (queue)
+            {
+              *queue = clCreateCommandQueue(*ctx, dev, qprops, &status);
+              CHECK_CL_ERROR(status, "clCreateCommandQueue");
+            }
 
             return;
           }
