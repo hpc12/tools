@@ -31,11 +31,11 @@ int main(int argc, char **argv)
   // --------------------------------------------------------------------------
   // allocate and initialize CPU memory
   // --------------------------------------------------------------------------
-  double *a = (double *) malloc(sizeof(double) * n);
+  float *a = (float *) malloc(sizeof(float) * n);
   if (!a) { perror("alloc x"); abort(); }
-  double *b = (double *) malloc(sizeof(double) * n);
+  float *b = (float *) malloc(sizeof(float) * n);
   if (!b) { perror("alloc y"); abort(); }
-  double *c = (double *) malloc(sizeof(double) * n);
+  float *c = (float *) malloc(sizeof(float) * n);
   if (!c) { perror("alloc z"); abort(); }
 
   for (size_t i = 0; i < n; ++i)
@@ -49,15 +49,15 @@ int main(int argc, char **argv)
   // --------------------------------------------------------------------------
   cl_int status;
   cl_mem buf_a = clCreateBuffer(ctx, CL_MEM_READ_WRITE, 
-      sizeof(double) * n, 0, &status);
+      sizeof(float) * n, 0, &status);
   CHECK_CL_ERROR(status, "clCreateBuffer");
 
   cl_mem buf_b = clCreateBuffer(ctx, CL_MEM_READ_WRITE,
-      sizeof(double) * n, 0, &status);
+      sizeof(float) * n, 0, &status);
   CHECK_CL_ERROR(status, "clCreateBuffer");
 
   cl_mem buf_c = clCreateBuffer(ctx, CL_MEM_READ_WRITE,
-      sizeof(double) * n, 0, &status);
+      sizeof(float) * n, 0, &status);
   CHECK_CL_ERROR(status, "clCreateBuffer");
 
   // --------------------------------------------------------------------------
@@ -65,12 +65,12 @@ int main(int argc, char **argv)
   // --------------------------------------------------------------------------
   CALL_CL_GUARDED(clEnqueueWriteBuffer, (
         queue, buf_a, /*blocking*/ CL_TRUE, /*offset*/ 0,
-        n * sizeof(double), a,
+        n * sizeof(float), a,
         0, NULL, NULL));
 
   CALL_CL_GUARDED(clEnqueueWriteBuffer, (
         queue, buf_b, /*blocking*/ CL_TRUE, /*offset*/ 0,
-        n * sizeof(double), b,
+        n * sizeof(float), b,
         0, NULL, NULL));
 
   // --------------------------------------------------------------------------
@@ -85,7 +85,7 @@ int main(int argc, char **argv)
   for (int trip = 0; trip < ntrips; ++trip)
   {
     SET_4_KERNEL_ARGS(knl, buf_a, buf_b, buf_c, n);
-    size_t ldim[] = { 128 };
+    size_t ldim[] = { 32 };
     size_t gdim[] = { ((n + ldim[0] - 1)/ldim[0])*ldim[0] };
     CALL_CL_GUARDED(clEnqueueNDRangeKernel,
         (queue, knl,
@@ -99,20 +99,20 @@ int main(int argc, char **argv)
   double elapsed = timestamp_diff_in_seconds(time1,time2)/ntrips;
   printf("%f s\n", elapsed);
   printf("%f GB/s\n",
-      3*n*sizeof(double)/1e9/elapsed);
+      3*n*sizeof(float)/1e9/elapsed);
 
   // --------------------------------------------------------------------------
   // transfer back & check
   // --------------------------------------------------------------------------
   CALL_CL_GUARDED(clEnqueueReadBuffer, (
         queue, buf_c, /*blocking*/ CL_TRUE, /*offset*/ 0,
-        n * sizeof(double), c,
+        n * sizeof(float), c,
         0, NULL, NULL));
 
   for (size_t i = 0; i < n; ++i)
     if (c[i] != 3*i)
     {
-      printf("BAD %ld!\n", i);
+      printf("BAD %ld %f %f!\n", i, c[i], c[i] - 3*i);
       abort();
     }
   puts("GOOD");

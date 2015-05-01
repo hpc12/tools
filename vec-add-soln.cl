@@ -1,9 +1,9 @@
 #pragma OPENCL EXTENSION cl_khr_fp64: enable
 
 __kernel void sum(
-    __global const double *a,
-    __global const double *b, 
-    __global double *c,
+    __global const float *a,
+    __global const float *b,
+    __global float *c,
     long n)
 {
   int gid = get_global_id(0);
