@@ -433,7 +433,7 @@ cl_kernel kernel_from_string(cl_context ctx,
           0, NULL, &log_size));
 
     bool do_print = status != CL_SUCCESS;
-    if (!do_print && log_size)
+    if (!do_print && log_size > 1)
     {
       if (getenv("CL_HELPER_PRINT_COMPILER_OUTPUT"))
         do_print = true;

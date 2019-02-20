@@ -1,19 +1,24 @@
 #include "timing.h"
 #include "cl-helper.h"
 
-
-
+static const char PROGNAME[] = "cl-demo";
+static const cl_long DEFAULT_N = 1 * 1000 * 1000;
+static const int DEFAULT_NTRIPS = 10;
 
 int main(int argc, char **argv)
 {
-  if (argc != 3)
-  {
-    fprintf(stderr, "need two arguments!\n");
-    abort();
-  }
+  const int ntrips = argc >= 3 ? atoi(argv[2]) : DEFAULT_NTRIPS;
+  const cl_long n = argc >= 2 ? atol(argv[1]) : DEFAULT_N;
 
-  const cl_long n = atol(argv[1]);
-  const int ntrips = atoi(argv[2]);
+  if (ntrips <= 0 || n <= 0)
+  {
+    fprintf(stderr,
+      "\nUsage: %s [LENGTH [REPEAT]]\n"
+      "\n  Adds two vectors of LENGTH floats REPEAT times."
+      "\n  Default LENGTH is %ld, REPEAT is %d.\n\n",
+           PROGNAME, DEFAULT_N, DEFAULT_NTRIPS);
+    return 1;
+  }
 
   cl_context ctx;
   cl_command_queue queue;
